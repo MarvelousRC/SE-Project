@@ -10,7 +10,7 @@ create table stock(
 	amount bigint,   -- 总发行量
 	permission boolean default true,   -- 本股票是否允许交易
 	notification varchar(500) default null,   -- 通知
-	percentagePriceChange numeric(8, 3) default 0.1,   -- 最大涨跌幅
+	percentagepricechange numeric(8, 3) default 0.1,   -- 最大涨跌幅
 	st boolean default false   -- 是否为ST股票
 );
 
@@ -142,6 +142,18 @@ create table asks(
 	shares2trade bigint,   -- 该指令中未被交易的部分的股数
 	timearchived timestamp default null,   -- 被存档的时间（加入该关系的时间）
 	status enum('complete', 'expired', 'partial') default 'partial'   -- 状态 complete, expired, partial
+);
+
+-- 交易指令缓存表
+drop table if exists tempinstructions;
+create table tempinstructions(
+	id serial primary key,   -- 编号：唯一性的编号
+	time timestamp default current_timestamp,   -- 缓存时间
+	tradetype enum('sell', 'buy'),   -- 交易类型
+	uid bigint not null references idreference(personid),   -- 用户ID标识
+	code varchar(20) not null references stock(code),   -- 代交易的股票代码 例如'BABA','MSFT'
+	shares bigint not null,   -- 所有交易的股数
+	price numeric(25, 2) not null   -- 交易的单价（元/股）[0-999999.99]
 );
 
 -- 交易撮合表

@@ -1,6 +1,9 @@
 // 数据库连接
 let dbConnection = require('../database/MySQLconnection');
 
+// 引用的自定义模块类
+let Match = require('../publicFunctionInterfaces/Match');
+
 /*
 * Instructions类：包含对数据库表格bids、asks、matchs、dealsbid、dealsask的直接SQL操作
 * 维护小组：D组
@@ -32,17 +35,35 @@ function Instructions() {
             callback(result);
         });
     };
+    /*
+    方法名称：getTheFirstTempInstructionInfo
+    实现功能：获取优先级最高的一条临时缓存交易指令
+    传入参数：回调函数
+    回调参数：json：直接承接result
+    编程者：孙克染
+    备注：调用时需要判断结果length>0；按时间从新到旧的顺序排列；D组外小组请勿调用
+    * */
+    this.getTheFirstTempInstructionInfo = function (callback) {
+        let getSql = "SELECT * FROM tempinstructions ORDER BY time DESC LIMIT 1";
+        dbConnection.query(getSql, function (err, result) {
+            if (err) {
+                console.log('[SELECT ERROR] - ', err.message);
+                return;
+            }
+            callback(result);
+        });
+    };
     //单项查询
     /*
     方法名称：getTheMostMatch
     实现功能：获取最可能撮合的指令
     传入参数：tradeType（'sell', 'buy'）、stockId（字符串）、priceThreshold（浮点数）、回调函数
-    回调参数：res = {result: false, id: 0, shares2trade: 0, price: 0, shares: 0}
+    回调参数：res = {result: false, id: 0, personid: 0, shares2trade: 0, price: 0, shares: 0};
     编程者：孙克染
     * */
     this.getTheMostMatch = function (tradeType, stockId, priceThreshold, callback) {
-        let res = {result: false, id: 0, shares2trade: 0, price: 0, shares: 0};
-        let getSql = "SELECT id, shares2trade FROM ";
+        let res = {result: false, id: 0, personid: 0, shares2trade: 0, price: 0, shares: 0};
+        let getSql = "SELECT * FROM ";
         if (tradeType === "sell") {
             getSql += "asks WHERE code = ? AND status = 'partial' AND price <= ? ORDER BY price asc, time asc limit 1";
         } else {
@@ -56,11 +77,12 @@ function Instructions() {
                 return;
             }
             if (result.length > 0) {
+                res.personid = result.uid;
                 res.result = true;
-                res.id = result.id;
-                res.price = result.price;
-                res.shares = result.shares;
-                res.shares2trade = result.shares2trade;
+                res.id = result[0].id;
+                res.price = result[0].price;
+                res.shares = result[0].shares;
+                res.shares2trade = result[0].shares2trade;
                 callback(res);
             } else {
                 callback(res);
@@ -69,31 +91,54 @@ function Instructions() {
     };
     /****插入方法****/
     /*
-    方法名称：addInstructions
-    实现功能：插入交易指令
-    传入参数：tradeType（'sell', 'buy'）、personid（整数）、stockid（字符串）、shares（整数）、pricePer（浮点数）、回调函数
+    方法名称：addTempInstructions
+    实现功能：插入缓存交易指令
+    传入参数：tradeType（'sell', 'buy'）、personId（整数）、stockId（字符串）、shares（整数）、price（浮点数）、回调函数
     回调参数：true（插入成功）, false（插入失败）
-    编程者：孙克染、陈玮烨
+    编程者：孙克染
     * */
-    this.addInstructions = function (tradeType, personid, stockid, shares, pricePer, callback) {
-        let addSql = "INSERT INTO ";
-        if (tradeType === "sell") {
-            addSql += 'asks(uid, code, shares, price, shares2trade) VALUES(?,?,?,?,?)';
-        } else {
-            addSql += 'bids(uid, code, shares, price, shares2trade) VALUES(?,?,?,?,?)';
-        }
-        let addSqlParams = [personid, stockid, shares, pricePer, shares];
-        //// cwy修改：添加参数
+    this.addTempInstructions = function (tradeType, personId, stockId, shares, price, callback) {
+        let addSql = "INSERT INTO tempinstructions(tradetype, uid, code, shares, price) VALUES(?,?,?,?,?)";
+        let addSqlParams = [tradeType, personId, stockId, shares, price];
         dbConnection.query(addSql, addSqlParams, function (err, result) {
             if (err) {
                 console.log('[INSERT ERROR] - ', err.message);
                 callback(false);
                 return;
             }
-            const istID = result.insertId;    // 需要记录刚刚插入的指令的编号
-            //console.log('INSERT ID:', result);
             callback(true);
-            //matchOnInsertion(istID, tradeType, shares, pricePer, code);
+        });
+    };
+    /*
+    方法名称：addInstructions
+    实现功能：插入交易指令
+    传入参数：tradeType（'sell', 'buy'）、personId（整数）、stockId（字符串）、shares（整数）、pricePer（浮点数）、回调函数
+    回调参数：true（插入成功）, false（插入失败）
+    编程者：孙克染、陈玮烨
+    * */
+    this.addInstructions = function (tradeType, personId, stockId, shares, price, callback) {
+        let res = {addResult: false, matchResult: false};
+        let addSql = "INSERT INTO ";
+        if (tradeType === "sell") {
+            addSql += 'asks(uid, code, shares, price, shares2trade) VALUES(?,?,?,?,?)';
+        } else {
+            addSql += 'bids(uid, code, shares, price, shares2trade) VALUES(?,?,?,?,?)';
+        }
+        let addSqlParams = [personId, stockId, shares, price, shares];
+        //// cwy修改：添加参数
+        dbConnection.query(addSql, addSqlParams, function (err, result) {
+            if (err) {
+                console.log('[INSERT ERROR] - ', err.message);
+                callback(res);
+                return;
+            }
+            const istID = result.insertId;    // 需要记录刚刚插入的指令的编号
+            res.addResult = true;
+            let match = new Match();
+            match.match(istID, tradeType, shares, price, stockId, personId, function (result) {
+                res.matchResult = result;
+                callback(res);
+            });
         });
     };
     /*
@@ -118,7 +163,7 @@ function Instructions() {
     /*
     方法名称：addDeals
     实现功能：插入撮合记录
-    传入参数：askId、bidId、shares（整数）、askPrice（浮点数）、bidPrice（浮点数）、matchPrice（浮点数）、stockId（字符串）、回调函数
+    传入参数：tradeType、instructionId, shares, sharesDealed, price, stockId,、回调函数
     回调参数：true（插入成功）, false（插入失败）
     编程者：孙克染
     * */
