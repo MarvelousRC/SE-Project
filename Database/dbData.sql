@@ -1,5 +1,4 @@
 -- 清除全部表中的内容
-delete from tempinstructions;
 delete from dealsask;
 delete from dealsbid;
 delete from matchs;
