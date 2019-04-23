@@ -10,7 +10,7 @@ create table stock(
 	amount bigint,   -- 总发行量
 	permission boolean default true,   -- 本股票是否允许交易
 	notification varchar(500) default null,   -- 通知
-	percentagepricechange numeric(8, 3) default 0.1,   -- 最大涨跌幅
+	percentagePriceChange numeric(8, 3) default 0.1,   -- 最大涨跌幅
 	st boolean default false   -- 是否为ST股票
 );
 
@@ -87,8 +87,8 @@ create table stockhold(
 drop table if exists capitalaccount;
 create table capitalaccount(
 	capitalaccountid bigint primary key,   -- 资金账户ID（主键）
-	tradepassword varchar(100) not null,   -- 交易密码（用于交易客户端）
-	cashpassword varchar(100) not null,   -- 存取款密码（用于存取款）
+	tradepassWord varchar(100) not null,   -- 交易密码（用于交易客户端）
+	cashpassWord varchar(100) not null,   -- 存取款密码（用于存取款）
 	identificationid varchar(18) not null,   -- 开户身份证号码
 	relatedsecuritiesaccountid bigint references idreference(accountid),   -- 相关联的证券账户ID（外键）
 	capitalaccountstate enum('normal', 'frozen', 'logout') default 'normal',   -- 资金账户状态（正常，冻结，注销）
@@ -116,13 +116,8 @@ create table capitalaccountio(
 );
 
 -- Group-D
-drop table if exists matchs;
-drop table if exists dealsask;
-drop table if exists dealsbid;
-drop table if exists asks;
-drop table if exists bids;
-
 -- 股票买入指令表
+drop table if exists bids;
 create table bids(
 	id serial primary key,   -- 编号：唯一性的编号 作为指向该指令的索引
 	time timestamp default current_timestamp,   -- 时间
@@ -136,6 +131,7 @@ create table bids(
 );
 
 -- 股票卖出指令表
+drop table if exists asks;
 create table asks(
 	id serial primary key,   -- 编号：唯一性的编号 作为指向该指令的索引
 	time timestamp default current_timestamp,   -- 时间
@@ -148,32 +144,22 @@ create table asks(
 	status enum('complete', 'expired', 'partial') default 'partial'   -- 状态 complete, expired, partial
 );
 
--- 交易指令缓存表
-drop table if exists tempinstructions;
-create table tempinstructions(
-	id serial primary key,   -- 编号：唯一性的编号
-	time timestamp default current_timestamp,   -- 缓存时间
-	tradetype enum('sell', 'buy'),   -- 交易类型
-	uid bigint not null references idreference(personid),   -- 用户ID标识
-	code varchar(20) not null references stock(code),   -- 代交易的股票代码 例如'BABA','MSFT'
-	shares bigint not null,   -- 所有交易的股数
-	price numeric(25, 2) not null   -- 交易的单价（元/股）[0-999999.99]
-);
-
 -- 交易撮合表
+drop table if exists matchs;
 create table matchs(
 	matchid serial primary key,   -- 撮合编号
 	askid bigint references asks(id),   -- 卖指令编号
 	bidid bigint references bids(id),   -- 买指令编号
 	shares bigint,   -- 交易数量
-	askprice numeric(25, 2),   -- 卖指令价格
-	bidprice numeric(25, 2),   -- 买指令价格
+	askPrice numeric(25, 2),   -- 卖指令价格
+	bidPrice numeric(25, 2),   -- 买指令价格
 	matchprice numeric(25, 2),   -- 撮合价格
 	matchtime timestamp default current_timestamp,   -- 撮合时间
 	code varchar(20) not null references stock(code) on delete set null on update cascade  -- 待交易的股票代码 例如'BABA','MSFT'
 );
 
 -- 买入成交表
+drop table if exists dealsbid;
 create table dealsbid(
 	id bigint unsigned primary key,   -- 买指令编号
 	shares bigint,   -- 指令规定的交易数
@@ -185,6 +171,7 @@ create table dealsbid(
 );
 
 -- 卖出成交表
+drop table if exists dealsask;
 create table dealsask(
 	id bigint unsigned primary key,   -- 卖指令编号
 	shares bigint,   -- 指令规定的交易数
