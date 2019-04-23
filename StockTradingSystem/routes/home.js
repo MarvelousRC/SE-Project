@@ -16,14 +16,6 @@ let Match = require('../publicFunctionInterfaces/Match');
 /* GET home page. */
 router.get('/', function(req, res, next) {
     res.render('home');
-    let match = new Match();
-    setInterval(match.convertTempInstructionsToInstructions(function (result) {
-        if (result === true) {
-            console.log("加入成功！撮合成功！");
-        } else {
-            console.log("加入或者撮合失败！");
-        }
-    }), 5000);
 });
 
 router.get('/index', function (req, res, next) {
@@ -65,12 +57,12 @@ router.post('/orderSubmit', function (req, res) {
                                 }
                             });
                         } else {
-                            capitalAccount.getAvailableMoneyByCapitalAccountId(parseInt(req.body.userId), function (result) {
-                                if (result === 'notFound') {
-                                    res0.remark = "资金账户可用资金存在问题！";
+                            capitalAccount.getCapitalByCapitalAccountId(parseInt(req.body.userId), function (result) {
+                                if (result.result === false) {
+                                    res0.remark = result.remark;
                                     resolve(res0);
                                 } else {
-                                    let availableMoney = parseFloat(result);
+                                    let availableMoney = result.availableMoney;
                                     let moneyThisTime = parseInt(req.body.stockNum)*parseFloat(req.body.pricePer);
                                     if (availableMoney < moneyThisTime) {
                                         res0.remark = "资金账户可用资金不足, 仅剩" + availableMoney + "元!";
@@ -144,11 +136,10 @@ router.post('/queryBuy', function (req, res) {
 });
 
 router.post('/test', function (req, res) {
-    // var accounts = new Accounts();
-    // accounts.getAccountidByPersonid(parseInt(req.body.userId), function (result) {
-    //     let returnText = "" + result;
-    //     res.end(returnText);
-    // });
+    let match = new Match();
+    match.convertTempInstructionsToInstructions(function (result) {
+        res.end(result.remark);
+    });
 });
 
 module.exports = router;

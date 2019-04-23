@@ -1,6 +1,8 @@
 // 引用的自定义模块类
 let Instructions = require('../sqlClasses/Instructions');
 let Stock = require('../sqlClasses/Stock');
+let CapitalAccount = require('../sqlClasses/CapitalAccount');
+let User = require('../publicFunctionInterfaces/Users');
 
 /*
 * Match类：包含方法：指令撮合
@@ -13,22 +15,33 @@ function Match() {
     方法名称：convertTempInstructionsToInstructions
     实现功能：将缓存的优先级最高的指令加入指令表
     传入参数：回调函数
-    回调参数：bool: true, false
+    回调参数：res = {result: false, remark: ""}
     编程者：孙克染
     备注：串行调用！
     * */
     this.convertTempInstructionsToInstructions = function (callback) {
+        let res = {result: false, remark: ""};
         let instructions = new Instructions();
         instructions.getTheFirstTempInstructionInfo(function (result) {
             if (result.length > 0) {
                 instructions.addInstructions(result[0].tradetype, result[0].uid, result[0].code, result[0].shares, result[0].price, function (result) {
-                    if (result === true) {
-                        console.log("加入指令并撮合完成！");
+                    if (result.addResult === true) {
+                        res.remark = "加入指令完成！";
                     } else {
-                        console.log("加入指令或撮合失败！");
+                        res.remark = "加入指令失败！";
                     }
-                    callback(result);
+                    if (result.matchResult === true) {
+                        res.remark += "撮合成功！";
+                    } else {
+                        res.remark += "撮合失败！";
+                    }
+                    res.result = result.addResult && result.matchResult;
+                    callback(res);
                 });
+            } else {
+                res.remark = "没有缓存指令！";
+                res.result = true;
+                callback(res);
             }
         });
     };
@@ -40,7 +53,7 @@ function Match() {
     编程者：孙克染、杨清杰、张梓欣、陈玮烨
     备注：仅限于加入指令时调用！串行调用！
     * */
-    this.match = function (istID, tradeType, shares, price, code, personId, callback) {
+    Match.match = function (istID, tradeType, shares, price, code, personId, callback) {
         let promise = new Promise(function (resolve, reject) {
             let resu = {result: false, continueOrNot: false, remark: "", remainShares: 0};
             let instruction = new Instructions();
@@ -54,6 +67,8 @@ function Match() {
             }
             //涨跌停限制
             let stock = new Stock();
+            let capitalAccount = new CapitalAccount();
+            let user = new User();
             instruction.getTheMostMatch(tradeType1, code, price, function (res) {
                 stock.getStockInfoByStockId(code,function (res2) {
                     if (res.result !== false) {
@@ -99,50 +114,107 @@ function Match() {
                             askPrice = res.price;
                             bidPrice = price;
                         }
-                        //添加到match表中
-                        instruction.addMatchs(askId, bidId, hasDoneShares, askPrice, bidPrice, matchPrice, code, function (result) {
-                            if (result === true) {
-                                instruction.modifyShares2TradeByInstructionId(tradeType, istID, hasDoneShares, function (result) {
-                                    if (result === true) {
-                                        instruction.modifyShares2TradeByInstructionId(tradeType1, res.id, hasDoneShares, function (result) {
+                        let buyCapitalAccountId, sellCapitalAccountId;
+                        // 获取买家资金账户ID
+                        user.getCapitalAccountIdByPersonId(buyPersonId, function (result) {
+                            if (result.result === true) {
+                                buyCapitalAccountId = result.capitalAccountId;
+                                // 获取卖家资金账户ID
+                                user.getCapitalAccountIdByPersonId(sellPersonId, function (result) {
+                                    if (result.result === true) {
+                                        sellCapitalAccountId = result.capitalAccountId;
+                                        // 添加到撮合表中
+                                        instruction.addMatchs(askId, bidId, hasDoneShares, askPrice, bidPrice, matchPrice, code, function (result) {
                                             if (result === true) {
-                                                //已经完成的项目更新到用户表中
-                                                //卖家账户
-                                                stock.modifyStockHoldNumber(sellPersonId, code, -hasDoneShares, function (result) {
+                                                // 修改购买指令表相关指令状态
+                                                instruction.modifyShares2TradeByInstructionId('buy', bidId, hasDoneShares, function (result) {
                                                     if (result === true) {
-                                                        //买家账户
-                                                        stock.modifyStockHoldNumber(buyPersonId, code, hasDoneShares, function (result) {
+                                                        // 修改出售指令表相关指令状态
+                                                        instruction.modifyShares2TradeByInstructionId('sell', askId, hasDoneShares, function (result) {
                                                             if (result === true) {
-                                                                resu.remark = "本次撮合成功！";
-                                                                resu.result = true;
-                                                                if (shares > hasDoneShares) {
-                                                                    resu.continueOrNot = true;
-                                                                    resu.remainShares = shares - hasDoneShares;
-                                                                }
-                                                                resolve(resu);
+                                                                let amount = matchPrice * hasDoneShares;
+                                                                // 买家资金流水记录
+                                                                capitalAccount.ioAndInterest(buyCapitalAccountId, -amount, "股票购买支出", function (result) {
+                                                                    if (result === true) {
+                                                                        // 卖家资金流水记录
+                                                                        capitalAccount.ioAndInterest(sellCapitalAccountId, amount, "股票出售收入", function (result) {
+                                                                            if (result === true) {
+                                                                                // 转账操作
+                                                                                capitalAccount.pay(buyCapitalAccountId, sellCapitalAccountId, amount, function (result) {
+                                                                                    if (result === true) {
+                                                                                        // 更新用户持股表 - 卖家账户
+                                                                                        stock.modifyStockHoldNumber(sellPersonId, code, -hasDoneShares, function (result) {
+                                                                                            if (result === true) {
+                                                                                                // 更新用户持股表 - 买家账户
+                                                                                                stock.modifyStockHoldNumber(buyPersonId, code, hasDoneShares, function (result) {
+                                                                                                    if (result === true) {
+                                                                                                        resu.result = true;
+                                                                                                        if (shares > hasDoneShares) {
+                                                                                                            resu.continueOrNot = true;
+                                                                                                            resu.remainShares = shares - hasDoneShares;
+                                                                                                        }
+                                                                                                        // 更新股票实时价格
+                                                                                                        stock.updateStockPrice(code, matchPrice, function (result) {
+                                                                                                            if (result === true) {
+                                                                                                                resu.remark = "本次撮合成功！";
+                                                                                                                console.log("撮合价格：" + matchPrice);
+                                                                                                                console.log("撮合股数：" + hasDoneShares);
+                                                                                                            } else {
+                                                                                                                resu.remark = "股票实时价格更新失败！";
+                                                                                                            }
+                                                                                                            callback(resu);
+                                                                                                        });
+                                                                                                        resolve(resu);
+                                                                                                    } else {
+                                                                                                        resu.remark = "Error: 买家持股表更新失败！";
+                                                                                                        resolve(resu);
+                                                                                                    }
+                                                                                                });
+                                                                                            } else {
+                                                                                                resu.remark = "Error: 卖家持股表更新失败！";
+                                                                                                resolve(resu);
+                                                                                            }
+                                                                                        });
+                                                                                    } else {
+                                                                                        resu.remark = "转账失败！";
+                                                                                        callback(resu);
+                                                                                    }
+                                                                                });
+                                                                            } else {
+                                                                                resu.remark = "卖家资金流水记录失败！";
+                                                                                callback(resu);
+                                                                            }
+                                                                        });
+                                                                    } else {
+                                                                        resu.remark = "买家资金流水记录失败！";
+                                                                        callback(resu);
+                                                                    }
+                                                                });
                                                             } else {
-                                                                resu.remark = "Error: 买家持股表更新失败！";
+                                                                resu.remark = "Error: 指令表2更新失败！"+tradeType1;
                                                                 resolve(resu);
                                                             }
                                                         });
                                                     } else {
-                                                        resu.remark = "Error: 卖家持股表更新失败！";
+                                                        resu.remark = "Error: 指令表1更新失败！"+tradeType;
                                                         resolve(resu);
                                                     }
                                                 });
                                             } else {
-                                                resu.remark = "Error: 指令表2更新失败！"+tradeType1;
+                                                resu.remark = "Error: 撮合表更新失败！";
                                                 resolve(resu);
                                             }
                                         });
                                     } else {
-                                        resu.remark = "Error: 指令表1更新失败！"+tradeType;
-                                        resolve(resu);
+                                        // 卖家资金账户ID获取失败
+                                        resu.remark = result.remark;
+                                        callback(resu);
                                     }
                                 });
                             } else {
-                                resu.remark = "Error: 撮合表更新失败！";
-                                resolve(resu);
+                                // 买家资金账户ID获取失败
+                                resu.remark = result.remark;
+                                callback(resu);
                             }
                         });
                     } else {
@@ -157,7 +229,7 @@ function Match() {
             console.log(result.remark);
             if (result.result === true) {
                 if (result.continueOrNot === true) {
-                    User.match(istID, tradeType, result.remainShares, price, code, personId, callback);
+                    Match.match(istID, tradeType, result.remainShares, price, code, personId, callback);
                 } else {
                     console.log("撮合完成！");
                     callback(true);

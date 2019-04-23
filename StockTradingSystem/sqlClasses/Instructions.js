@@ -22,13 +22,14 @@ function Instructions() {
     this.getInstructionsInfoByPersonId = function (tradeType, personId, callback) {
         let getSql = "SELECT * FROM ";
         if (tradeType === "sell") {
-            getSql += "asks WHERE uid = ? ORDER BY time desc";
+            getSql += "asks WHERE uid = ? ORDER BY time DESC";
         } else {
-            getSql += "bids WHERE uid = ? ORDER BY time desc";
+            getSql += "bids WHERE uid = ? ORDER BY time DESC";
         }
         let getSqlParams = [personId];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: getInstructionsInfoByPersonId");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -44,9 +45,10 @@ function Instructions() {
     备注：调用时需要判断结果length>0；按时间从新到旧的顺序排列；D组外小组请勿调用
     * */
     this.getTheFirstTempInstructionInfo = function (callback) {
-        let getSql = "SELECT * FROM tempinstructions ORDER BY time DESC LIMIT 1";
+        let getSql = "SELECT * FROM tempinstructions ORDER BY time ASC LIMIT 1";
         dbConnection.query(getSql, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: getTheFirstTempInstructionInfo");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -65,13 +67,14 @@ function Instructions() {
         let res = {result: false, id: 0, personid: 0, shares2trade: 0, price: 0, shares: 0};
         let getSql = "SELECT * FROM ";
         if (tradeType === "sell") {
-            getSql += "asks WHERE code = ? AND status = 'partial' AND price <= ? ORDER BY price asc, time asc limit 1";
+            getSql += "asks WHERE code = ? AND status = 'partial' AND price <= ? ORDER BY price ASC, time ASC limit 1";
         } else {
-            getSql += "bids WHERE code = ? AND status = 'partial' AND price >= ? ORDER BY price desc, time asc limit 1";
+            getSql += "bids WHERE code = ? AND status = 'partial' AND price >= ? ORDER BY price DESC, time ASC limit 1";
         }
         let getSqlParams = [stockId, priceThreshold];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: getTheMostMatch");
                 console.log('[SELECT ERROR] - ', err.message);
                 callback(res);
                 return;
@@ -102,6 +105,7 @@ function Instructions() {
         let addSqlParams = [tradeType, personId, stockId, shares, price];
         dbConnection.query(addSql, addSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: addTempInstructions");
                 console.log('[INSERT ERROR] - ', err.message);
                 callback(false);
                 return;
@@ -128,14 +132,14 @@ function Instructions() {
         //// cwy修改：添加参数
         dbConnection.query(addSql, addSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: addInstructions");
                 console.log('[INSERT ERROR] - ', err.message);
                 callback(res);
                 return;
             }
             const istID = result.insertId;    // 需要记录刚刚插入的指令的编号
             res.addResult = true;
-            let match = new Match();
-            match.match(istID, tradeType, shares, price, stockId, personId, function (result) {
+            Match.match(istID, tradeType, shares, price, stockId, personId, function (result) {
                 res.matchResult = result;
                 callback(res);
             });
@@ -153,6 +157,7 @@ function Instructions() {
         let addSqlParams = [askId, bidId, shares, askPrice, bidPrice, matchPrice, stockId];
         dbConnection.query(addSql, addSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: addMatchs");
                 console.log('[INSERT ERROR] - ', err.message);
                 callback(false);
                 return;
@@ -177,6 +182,7 @@ function Instructions() {
         let addSqlParams = [instructionId, shares, sharesDealed, price, stockId];
         dbConnection.query(addSql, addSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: addDeals");
                 console.log('[INSERT ERROR] - ', err.message);
                 callback(false);
                 return;
@@ -202,6 +208,7 @@ function Instructions() {
         }
         dbConnection.query(modSql, modSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: modifyShares2TradeByInstructionId");
                 console.log('[UPDATE ERROR] - ', err.message);
                 callback(false);
                 return;
@@ -221,16 +228,19 @@ function Instructions() {
     备注：类成员函数，仅限于类内调用
     * */
     Instructions.completeInstructions = function (callback) {
-        let modSql1 = "UPDATE asks SET status = 'complete' WHERE shares2trade = 0";
-        let modSql2 = "UPDATE bids SET status = 'complete' WHERE shares2trade = 0";
-        dbConnection.query(modSql1, function (err, result) {
+        let modSql1 = "UPDATE asks SET status = ?, timearchived = current_timestamp WHERE shares2trade = 0";
+        let modSql2 = "UPDATE bids SET status = ?, timearchived = current_timestamp WHERE shares2trade = 0";
+        let modSqlParams = ['complete'];
+        dbConnection.query(modSql1, modSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Instructions: completeInstructions1");
                 console.log('[UPDATE ERROR] - ', err.message);
                 callback(false);
                 return;
             }
-            dbConnection.query(modSql2, function (err, result) {
+            dbConnection.query(modSql2, modSqlParams, function (err, result) {
                 if (err) {
+                    console.log("ERROR: Instructions: completeInstructions2");
                     console.log('[UPDATE ERROR] - ', err.message);
                     callback(false);
                     return;

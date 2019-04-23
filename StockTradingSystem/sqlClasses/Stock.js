@@ -20,6 +20,7 @@ function Stock() {
         let getSql = "SELECT * FROM stock";
         dbConnection.query(getSql, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: getAllStockInfo");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -39,6 +40,7 @@ function Stock() {
         let getSqlParams = [personId];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: getStockHoldInfoByPersonId");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -58,6 +60,7 @@ function Stock() {
         let getSqlParams = [stockId];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: getStockInfoByStockId");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -78,6 +81,7 @@ function Stock() {
         let getSqlParams = [personId, stockId];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: getStockNumberByPersonIdAndStockId");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -100,6 +104,7 @@ function Stock() {
         let getSqlParams = [stockId];
         dbConnection.query(getSql, getSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: getStockPermissionByStockId");
                 console.log('[SELECT ERROR] - ', err.message);
                 return;
             }
@@ -121,10 +126,31 @@ function Stock() {
     编程者：黄欣雨、孙克染
     * */
     this.modifyStockHoldNumber = function (personId, stockId, deltaNum, callback) {
-        let modSql="UPDATE stockhold SET stocknum = stocknum + ?, updatetime = current_timestamp where personid = ? and stockid = ?";
+        let modSql="UPDATE stockhold SET stocknum = stocknum + ?, updatetime = current_timestamp WHERE personid = ? and stockid = ?";
         let modSqlParams = [deltaNum, personId, stockId];
         dbConnection.query(modSql, modSqlParams, function (err, result) {
             if (err) {
+                console.log("ERROR: Stock: modifyStockHoldNumber");
+                console.log('[UPDATE ERROR] - ', err.message);
+                callback(false);
+                return;
+            }
+            callback(true);
+        });
+    };
+    /*
+    方法名称：updateStockPrice
+    实现功能：更新股票实时价格
+    传入参数：stockId（字符串）、newPrice（浮点数，最新股价）、回调函数
+    回调参数：bool：true（修改成功）、false（修改失败）
+    编程者：黄欣雨、孙克染
+    * */
+    this.updateStockPrice = function (stockId, newPrice, callback) {
+        let modSql="UPDATE stock SET current_price = ? WHERE code = ?";
+        let modSqlParams = [newPrice, stockId];
+        dbConnection.query(modSql, modSqlParams, function (err, result) {
+            if (err) {
+                console.log("ERROR: Stock: updateStockPrice");
                 console.log('[UPDATE ERROR] - ', err.message);
                 callback(false);
                 return;
