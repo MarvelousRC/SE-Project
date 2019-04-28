@@ -73,7 +73,180 @@ function CapitalAccount() {
     /****插入方法****/
     //todo: 这里自己写就好了，应该没有其他小组会调用
     /****更新方法****/
+<<<<<<< HEAD
     //todo: 这里自己写就好了，应该没有其他小组会调用
+=======
+    /*
+    方法名称：convertAvailableMoneyToFrozenMoney
+    实现功能：通过资金账户ID将特定数量的可用资金转化为冻结资金
+    传入参数：capitalAccountId（整数）、回调函数
+    回调参数：bool：true（修改成功）、false（修改失败）
+    编程者：孙克染
+    * */
+    this.convertAvailableMoneyToFrozenMoney = function (capitalAccountId, useMoney, callback) {
+        let modSql = "UPDATE capitalaccount SET availablemoney = availablemoney - ?, frozenmoney = frozenmoney + ? WHERE capitalaccountid = ?";
+        let modSqlParams = [useMoney, useMoney, capitalAccountId];
+        dbConnection.query(modSql, modSqlParams, function (err, result) {
+            if (err) {
+                console.log("ERROR: CapitalAccount: convertAvailableMoneyToFrozenMoney");
+                console.log('[UPDATE ERROR] - ', err.message);
+                callback(false);
+                return;
+            }
+            callback(true);
+        });
+    };
+    /*
+    方法名称：convertFrozenMoneyToAvailableMoney
+    实现功能：通过资金账户ID将特定数量的冻结资金转化为可用资金
+    传入参数：capitalAccountId（整数）、回调函数
+    回调参数：bool：true（修改成功）、false（修改失败）
+    编程者：孙克染
+    * */
+    this.convertFrozenMoneyToAvailableMoney = function (capitalAccountId, drawbackMoney, callback) {
+        let modSql = "UPDATE capitalaccount SET availablemoney = availablemoney + ?, frozenmoney = frozenmoney - ? WHERE capitalaccountid = ?";
+        let modSqlParams = [drawbackMoney, drawbackMoney, capitalAccountId];
+        dbConnection.query(modSql, modSqlParams, function (err, result) {
+            if (err) {
+                console.log("ERROR: CapitalAccount: convertFrozenMoneyToAvailableMoney");
+                console.log('[UPDATE ERROR] - ', err.message);
+                callback(false);
+                return;
+            }
+            callback(true);
+        });
+    };
+    /*
+    方法名称：modifyTradePasswordByCapitalAccountId
+    实现功能：通过资金账户ID修改其密码
+    传入参数：capitalAccountId（整数或者数字字符串）、newPassword（字符串）回调函数
+    回调参数：
+    编程者：
+    备注：
+    * */
+    this.modifyTradePasswordByCapitalAccountId = function (capitalAccountId, newPassword, callback) {
+
+    };
+    /*
+    方法名称：ioAndInterest
+    实现功能：买卖股票、资金变动时，给定资金账户ID、收支金额(收入为正，支出为负)、描述信息，
+    进行计算利息、插入收支表记录  ！！！请C/D/E组在指令有效性检查之后、【变动可用资金【之前】】务必调用，谢谢！！！
+    传入参数：资金账户ID、收支金额(有正有负！)、描述信息、回调函数
+    回调参数：bool: true, false
+    编程者：苏彬、王宜霖、孙克染
+    * */
+    this.ioAndInterest = function (capitalAccountId, amount, ioDescription, callback) {
+        let calculateInterest = new CalculateInterest();
+        calculateInterest.calculate(capitalAccountId, function (tempInterest) {
+            //更新利息余额
+            let modSql = "Update capitalaccount set interestremained = interestremained + ? where capitalaccount.capitalaccountid = ? and capitalaccount.capitalaccountstate = ?";
+            let modSqlParams = [tempInterest, capitalAccountId, 'normal'];
+            dbConnection.query(modSql, modSqlParams, function (err, result) {
+                if (err) {
+                    console.log("ERROR: CapitalAccount: ioAndInterest1");
+                    console.log('[UPDATE ERROR] - ', err.message);
+                    callback(false);
+                    return;
+                }
+                //在资金账户收支记录io表中写入信息
+                let addSql = "Insert into capitalaccountio(capitalaccountid, ioamount, iodescription) VALUES(?,?,?)";
+                let addSqlParams = [capitalAccountId, amount, ioDescription];
+                dbConnection.query(addSql, addSqlParams, function (err, result) {
+                    if (err) {
+                        console.log("ERROR: CapitalAccount: ioAndInterest2");
+                        console.log('[INSERT ERROR] - ', err.message);
+                        callback(false);
+                        return;
+                    }
+                    callback(true);
+                });
+            });
+        });
+    };
+    /*
+    方法名称：pay
+    实现功能：转账
+    传入参数：支出方资金账户ID、收入方资金账户ID、使用的金额、回调函数
+    回调参数：bool: true, false
+    编程者：孙克染
+    * */
+    this.pay = function (fromCapitalAccountId, toCapitalAccountId, useMoney, callback) {
+        let modSql1 = "UPDATE capitalaccount SET frozenmoney = frozenmoney - ? WHERE capitalaccountid = ?";
+        let modSqlParams1 = [useMoney, fromCapitalAccountId];
+        dbConnection.query(modSql1, modSqlParams1, function (err, result) {
+            if (err) {
+                console.log("ERROR: CapitalAccount: pay1");
+                console.log('[UPDATE ERROR] - ', err.message);
+                callback(false);
+                return;
+            }
+            let modSql2 = "UPDATE capitalaccount SET availablemoney = availablemoney + ? WHERE capitalaccountid = ?";
+            let modSqlParams2 = [useMoney, toCapitalAccountId];
+            dbConnection.query(modSql2, modSqlParams2, function (err, result) {
+                if (err) {
+                    console.log("ERROR: CapitalAccount: pay2");
+                    console.log('[UPDATE ERROR] - ', err.message);
+                    callback(false);
+                    return;
+                }
+                callback(true);
+            });
+        });
+    };
+    /*
+    方法名称：recoverFrozenCapital
+    实现功能：恢复全部的冻结资金
+    传入参数：回调函数
+    回调参数：bool：true（修改成功）、false（修改失败）
+    编程者：孙克染（Debugged with CWY）
+    备注：调用此函数之前无需调用流水记录；自求多福吧！
+    * */
+    this.recoverFrozenCapital = function (callback) {
+        let getSql = "SELECT * FROM capitalaccount WHERE frozenmoney > ?";
+        let getSqlParams = [0];
+        let CapAcc = new CapitalAccount();
+        dbConnection.query(getSql, getSqlParams, function (err, result) {
+            if (err) {
+                console.log("ERROR: CapitalAccount: recoverFrozenCapital1");
+                console.log('[SELECT ERROR] - ', err.message);
+                return;
+            }
+            let promise = new Promise(function (resolve, reject) {
+                let i = 0, len = result.length;
+                let manipulateIO = function () {
+                    if (i < len)
+                    {
+                        CapAcc.ioAndInterest(result[i].capitalaccountid, result[i].frozenmoney, "未完成交易资金回退", function (result) {
+                            if (result === false) {
+                                console.log(result[i].capitalaccountid + "资金回退流水记录失败！");
+                            }
+                            i++;
+                            manipulateIO()
+                        });
+                    }
+                    else
+                    {
+                        resolve(true);
+                    }
+                };
+                manipulateIO();
+            });
+            promise.then(function (result) {
+                let modSql = "UPDATE capitalaccount SET availablemoney = availablemoney + frozenmoney, frozenmoney = ?";
+                let modSqlParams = [0];
+                dbConnection.query(modSql, modSqlParams, function (err, result) {
+                    if (err) {
+                        console.log("ERROR: Stock: recoverFrozenCapital");
+                        console.log('[UPDATE ERROR] - ', err.message);
+                        callback(false);
+                        return;
+                    }
+                    callback(true);
+                });
+            });
+        });
+    };
+>>>>>>> master
 }
 
 module.exports = CapitalAccount;

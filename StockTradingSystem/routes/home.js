@@ -20,6 +20,7 @@ router.get('/index', function (req, res, next) {
 });
 
 router.post('/orderSubmit', function (req, res) {
+<<<<<<< HEAD
     // 步骤一 检验指令和账户的有效性然后插入有效的指令数据
     var promise1 = new Promise(function (resolve, reject) {
         let returnState = false;
@@ -54,6 +55,34 @@ router.post('/orderSubmit', function (req, res) {
                                                         returnMessage = "证券账户对应股票持股数不足, 仅持有" + stockNum + "股!";
                                                         res.end(returnMessage);
                                                         resolve(returnState);
+=======
+    let promise1 = new Promise(function (resolve, reject) {
+        let res0 = {result: false, remark: ""};
+        let user = new User();
+        user.checkAllAccountValidity(parseInt(req.body.userId), function (result0) {
+            if (result0.result === true) {
+                let stock = new Stock();
+                stock.getStockPermissionByStockId(req.body.stockId, function (result) {
+                    if (result === "1") {
+                        let instructions = new Instructions();
+                        let capitalAccount = new CapitalAccount();
+                        if (req.body.tradeType === "sell") {
+                            stock.getStockNumberByPersonIdAndStockId(result0.personId, req.body.stockId, function (result) {
+                                if (result === 'notFound') {
+                                    res0.remark = "证券账户持股存在问题！";
+                                    resolve(res0);
+                                } else {
+                                    let stockNum = parseInt(result);
+                                    if (stockNum < parseInt(req.body.stockNum)) {
+                                        res0.remark = "证券账户对应股票持股数不足, 仅持有" + stockNum + "股!";
+                                        resolve(res0);
+                                    } else {
+                                        stock.convertStockToFrozenStock(result0.personId, req.body.stockId, parseInt(req.body.stockNum), function (result) {
+                                            if (result === true) {
+                                                instructions.addTempInstructions('sell', result0.personId, req.body.stockId, parseInt(req.body.stockNum), parseFloat(req.body.pricePer), function (result) {
+                                                    if (result.status === false) {
+                                                        res0.remark = "指令存在问题：" + result.info;
+>>>>>>> master
                                                     } else {
                                                         instructions.addInstructions("sell", personid, req.body.stockId, parseInt(req.body.stockNum), parseFloat(req.body.pricePer), function (result) {
                                                             if (result === "Add Failed!") {
@@ -81,6 +110,7 @@ router.post('/orderSubmit', function (req, res) {
                                         }
                                     });
                                 } else {
+<<<<<<< HEAD
                                     var money = new Money();
                                     money.getAvailableMoneyByCapitalAccountid(parseInt(req.body.userId), function (result) {
                                         try {
@@ -102,6 +132,25 @@ router.post('/orderSubmit', function (req, res) {
                                                             } else {
                                                                 returnState = true;
                                                                 returnMessage = "股票购买指令发布成功!";
+=======
+                                    let availableMoney = result.availableMoney;
+                                    let moneyThisTime = parseInt(req.body.stockNum)*parseFloat(req.body.pricePer);
+                                    if (availableMoney < moneyThisTime) {
+                                        res0.remark = "资金账户可用资金不足, 仅剩" + availableMoney + "元!";
+                                        resolve(res0);
+                                    } else {
+                                        // 买家资金流水记录
+                                        capitalAccount.ioAndInterest(parseInt(req.body.userId), -moneyThisTime, "股票购买支出", function (result) {
+                                            if (result === true) {
+                                                capitalAccount.convertAvailableMoneyToFrozenMoney(parseInt(req.body.userId), moneyThisTime, function (result) {
+                                                    if (result === true) {
+                                                        instructions.addTempInstructions('buy', result0.personId, req.body.stockId, parseInt(req.body.stockNum), parseFloat(req.body.pricePer), function (result) {
+                                                            if (result.status === false) {
+                                                                res0.remark = "指令存在问题：" + result.info;
+                                                            } else {
+                                                                res0.result = true;
+                                                                res0.remark = "股票出售指令发布成功!";
+>>>>>>> master
                                                             }
                                                             res.end(returnMessage);
                                                             resolve(returnState);
@@ -183,11 +232,40 @@ router.post('/queryBuy', function (req, res) {
     });
 });
 
+<<<<<<< HEAD
 router.post('/test', function (req, res) {
     var accounts = new Accounts();
     accounts.getAccountidByPersonid(parseInt(req.body.userId), function (result) {
         let returnText = "" + result;
         res.end(returnText);
+=======
+router.post('/queryTemp', function (req, res) {
+    let getSql = "SELECT * FROM tempinstructions";
+    dbConnection.query(getSql, function (err, result) {
+        if (err) {
+            console.log('[INSERT ERROR] - ', err.message);
+            return;
+        }
+        console.log('SELECT result:', result);
+        res.end(JSON.stringify(result));
+    });
+});
+
+router.post('/start', function (req, res) {
+    let match = new Match();
+    match.startMatching(function (result) {
+        res.end("Start successfully!");
+        match.convertTempInstructionsToInstructions(function (result) {
+            //res.end(result.remark);
+        });
+    });
+});
+
+router.post('/stop', function (req, res) {
+    let match = new Match();
+    match.stopMatching(function (result) {
+        res.end("Stop successfully!");
+>>>>>>> master
     });
 });
 

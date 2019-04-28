@@ -62,17 +62,51 @@ $(document).ready(function () {
             }
         });
     });
+<<<<<<< HEAD
     $("#test").click(function () {
+=======
+    $("#queryAllTemp").click(function () {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: "/home/queryTemp",
+            data: {},
+            success: function (result) {
+                console.log(result);
+                genTab2(result, "tabTemp");
+                alert("查询成功!");
+            },
+            error: function () {
+                alert("由于系统原因查询失败!");
+            }
+        });
+    });
+    $("#start").click(function () {
+>>>>>>> master
         $.ajax({
             type: "POST",
             dataType: "text",
-            url: "/home/test",
-            data: $("#tradeOrder").serialize(),
+            url: "/home/start",
+            data: {},
             success: function (result) {
                 alert(result);
             },
             error: function () {
-                alert("test failed!");
+                alert("Start failed!");
+            }
+        });
+    });
+    $("#stop").click(function () {
+        $.ajax({
+            type: "POST",
+            dataType: "text",
+            url: "/home/stop",
+            data: {},
+            success: function (result) {
+                alert(result);
+            },
+            error: function () {
+                alert("Stop failed!");
             }
         });
     });

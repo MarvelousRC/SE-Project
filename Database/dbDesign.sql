@@ -1,3 +1,9 @@
+-- 统一建立数据库
+drop database if exists StockTradingSys;
+create database StockTradingSys;
+-- 使用StockTradingSys命名空间
+use StockTradingSys;
+
 -- Group-E
 -- 股票表
 drop table if exists stock;
@@ -126,8 +132,13 @@ create table bids(
 	shares bigint not null,   -- 所有交易的股数
 	price numeric(25, 2) not null,   -- 交易的单价（元/股）[0-999999.99]
 	shares2trade bigint,   -- 该指令中未被交易的部分的股数
+<<<<<<< HEAD
 	timearchived timestamp default null,   -- 被存档的时间（加入该关系的时间）
 	status enum('complete', 'expired', 'partial') default 'partial'   -- 状态 complete, expired, partial
+=======
+	timearchived timestamp(6) default null,   -- 被存档的时间（加入该关系的时间）
+	status enum('complete', 'expired', 'partial', 'withdrawn') default 'partial'   -- 状态 complete, expired, partial
+>>>>>>> master
 );
 
 -- 股票卖出指令表
@@ -140,8 +151,13 @@ create table asks(
 	shares bigint not null,   -- 所有交易的股数
 	price numeric(25, 2) not null,   -- 交易的单价（元/股）[0-999999.99]
 	shares2trade bigint,   -- 该指令中未被交易的部分的股数
+<<<<<<< HEAD
 	timearchived timestamp default null,   -- 被存档的时间（加入该关系的时间）
 	status enum('complete', 'expired', 'partial') default 'partial'   -- 状态 complete, expired, partial
+=======
+	timearchived timestamp(6) default null,   -- 被存档的时间（加入该关系的时间）
+	status enum('complete', 'expired', 'partial', 'withdrawn') default 'partial'   -- 状态 complete, expired, partial
+>>>>>>> master
 );
 
 -- 交易撮合表
@@ -158,6 +174,7 @@ create table matchs(
 	code varchar(20) not null references stock(code) on delete set null on update cascade  -- 待交易的股票代码 例如'BABA','MSFT'
 );
 
+<<<<<<< HEAD
 -- 买入成交表
 drop table if exists dealsbid;
 create table dealsbid(
@@ -181,3 +198,24 @@ create table dealsask(
 	code varchar(20) not null references stock(code),   -- 代交易的股票代码 例如'BABA','MSFT'
 	foreign key (id) references asks(id) on delete cascade on update cascade
 );
+=======
+-- 卖出成交视图
+create view dealsAsk as
+select askid, code,
+       sum(shares) as sharesDealed,
+       sum(shares * matchprice) as totalPrice,
+       sum(shares * matchprice)/sum(shares) as avgPrice,
+       max(matchtime) as time
+from matchs
+group by askid, code;
+
+-- 买入成交视图
+create view dealsBid as
+select bidid, code,
+       sum(shares) as sharesDealed,
+       sum(shares * matchprice) as totalPrice,
+       sum(shares * matchprice)/sum(shares) as avgPrice,
+       max(matchtime) as time
+from matchs
+group by bidid, code;
+>>>>>>> master
