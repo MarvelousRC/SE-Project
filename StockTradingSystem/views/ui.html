@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Free Bootstrap Admin Template : Binary Admin</title>
+    <title>股票交易客户端</title>
     <!-- BOOTSTRAP STYLES-->
     <link href="/stylesheets/bootstrap.css" rel="stylesheet"/>
     <!-- FONTAWESOME STYLES-->
@@ -179,11 +179,11 @@
                                 element: 'morris-donut-chart',
                                 data: [{
                                     label: "可用资金",
-                                    value: item[2]
+                                    value: item[2]>0?item[2]:0
                                 },
                                     {
                                         label: "冻结资金",
-                                        value: item[3]
+                                        value: item[3]>0?item[3]:0
                                     },
                                 ],
                                 resize: true

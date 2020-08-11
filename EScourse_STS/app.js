@@ -14,14 +14,12 @@ var app = express();
 
 // config
 var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
 var loginRouter = require('./routes/login');
 var logoutRouter = require('./routes/logout');
-var homeRouter  = require('./routes/home' );
+var homeRouter  = require('./routes/home');
 var tableRouter = require('./routes/dynamic_table');
 var registrationRouter = require('./routes/registration');
 var changepswRouter = require('./routes/change_password');
-var basictableRouter = require('./routes/basic_table');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -50,14 +48,12 @@ app.use(session({
 // router level middleware setting
 // app.use(mount point, router)
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
 app.use('/login', loginRouter);
 app.use('/home',  homeRouter );
 app.use('/logout', logoutRouter);
 app.use('/dynamic_table', tableRouter);
 app.use('/registration', registrationRouter);
 app.use('/change_password', changepswRouter);
-app.use('/basic_table', basictableRouter);
 //---------------- MIDDLEWARE ----------------//
 
 
